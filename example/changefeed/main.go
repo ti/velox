@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jpillora/velox"
+	"github.com/ti/velox"
 )
 
 type Results struct {
@@ -23,7 +23,6 @@ type Results struct {
 func main() {
 	//sync handlers
 	router := http.NewServeMux()
-	router.Handle("/velox.js", velox.JS)
 	router.HandleFunc("/sync", func(w http.ResponseWriter, r *http.Request) {
 		results := &Results{}
 		//hijack request
@@ -67,18 +66,18 @@ func main() {
 }
 
 var indexhtml = []byte(`
-<div>Status: <b id="status">disconnected</b> (<span id="vid"></span>)</div>
-<pre id="example"></pre>
-<script src="/velox.js?dev=1"></script>
-<script>
-var foo = {};
-var v = velox("/sync", foo);
-v.onchange = function(isConnected) {
-	document.querySelector("#status").innerHTML = isConnected ? "connected" : "disconnected";
-};
-v.onupdate = function() {
-	document.querySelector("#vid").textContent = v.id;
-	document.querySelector("#example").innerHTML = JSON.stringify(foo, null, 2);
-};
-</script>
+var evtSource = new EventSource('http://127.0.0.1:3000/sync');
+    evtSource.onmessage = function(e) {
+       var v =  JSON.parse(e.data)
+        if (v.id !== undefined) {
+            document.querySelector("#vid").textContent = v.id;
+        }
+        document.querySelector("#example").innerHTML = JSON.stringify(v.body, null, 2);
+    };
+    evtSource.onopen = function() {
+        document.querySelector("#status").innerHTML = "connected";
+    };
+    evtSource.onerror = function(e) {
+        document.querySelector("#status").innerHTML = "disconnected";
+    };
 `)

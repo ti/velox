@@ -25,8 +25,6 @@ type Foo struct {
 	A, B int
 }
 foo := &Foo{}
-//serve velox.js client library (assets/dist/velox.min.js)
-http.Handle("/velox.js", velox.JS)
 //serve velox sync endpoint for foo
 http.Handle("/sync", velox.SyncHandler(foo))
 //make changes
@@ -36,35 +34,13 @@ foo.B = 21
 foo.Push()
 ```
 
-Server (Node)
-
-``` js
-//syncable object
-foo := &Foo{
-	a: 1,
-	b: 2
-}
-//express server
-let app = express();
-//serve velox.js client library (assets/dist/velox.min.js)
-app.get("/velox.js", velox.JS)
-//serve velox sync endpoint for foo
-app.get("/sync", velox.handle(foo))
-//make changes
-foo.a = 42
-foo.b = 21
-//push to client
-foo.$push()
-```
-
 Client (Node and Browser)
 
 ``` js
 // load script /velox.js
-var foo = {};
-var v = velox("/sync", foo);
-v.onupdate = function() {
-	//foo.A === 42 and foo.B === 21
+var evtSource = new EventSource('http://127.0.0.1:3000/sync');
+evtSource.onmessage = function(e) {
+   var v =  JSON.parse(e.data)
 };
 ```
 
@@ -80,25 +56,11 @@ Server API (Node)
 * `velox.state(object)` *function* returns `state` - Creates or restores a velox state from a given object
 * `state.handle(req, res)` *function* returns `Promise` - Handle the provided `express` request/response. Resolves on connection close. Rejects on any error.
 
-Client API (Node and Browser)
-
-* `velox(url, object)` *function* returns `v` - Creates a new SSE velox connection
-* `velox.sse(url, object)` *function* returns `v` - Creates a new SSE velox connection
-* `velox.ws(url, object)` *function* returns `v` - Creates a new WS velox connection
-* `v.onupdate(object)` *function* - Called when a server push is received
-* `v.onerror(err)` *function* - Called when a connection error occurs
-* `v.onconnect()` *function* - Called when the connection is opened
-* `v.ondisconnect()` *function* - Called when the connection is closed
-* `v.onchange(bool)` *function* - Called when the connection is opened or closed
-* `v.connected` *bool* - Denotes whether the connection is currently open
-* `v.ws` *bool* - Denotes whether the connection is in web sockets mode
-* `v.sse` *bool* - Denotes whether the connection is in server-sent events mode
-
 ### Example
 
 See this [simple `example/`](example/) and view it live here: https://velox.jpillora.com
 
-![screenshot](https://cloud.githubusercontent.com/assets/633843/13481947/8eea1804-e13d-11e5-80c8-be9317c54fbc.png)
+
 
 *Here is a screenshot from this example page, showing the messages arriving as either a full replacement of the object or just a delta. The server will send which ever is smaller.*
 
@@ -108,15 +70,15 @@ See this [simple `example/`](example/) and view it live here: https://velox.jpil
 * JS object with an `$apply` function will automatically be called on each update to play nice with Angular.
 * `velox.SyncHandler` is just a small wrapper around `velox.Sync`:
 
-	```go
-	func SyncHandler(gostruct interface{}) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if conn, err := Sync(gostruct, w, r); err == nil {
-				conn.Wait()
-			}
-		})
-	}
-	```
+  ```go
+  func SyncHandler(gostruct interface{}) http.Handler {
+  	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+  		if conn, err := Sync(gostruct, w, r); err == nil {
+  			conn.Wait()
+  		}
+  	})
+  }
+  ```
 
 ### Known issues
 
@@ -127,7 +89,6 @@ See this [simple `example/`](example/) and view it live here: https://velox.jpil
 
 * WebRTC support
 * Plain [`http`](https://nodejs.org/api/http.html#http_http_createserver_requestlistener) server support in Node
-* WebSockets support in Node
 
 #### MIT License
 

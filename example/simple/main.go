@@ -1,15 +1,12 @@
 package main
 
 import (
-	"compress/gzip"
 	"log"
 	"math/rand"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/NYTimes/gziphandler"
-	"github.com/jpillora/velox"
+	"github.com/ti/velox"
 )
 
 type Foo struct {
@@ -37,16 +34,11 @@ func main() {
 			//push to all connections
 			foo.Push()
 			//do other stuff...
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(2500 * time.Millisecond)
 		}
 	}()
 	//sync handlers
-	http.Handle("/velox.js", velox.JS)
-	//WARNING: minSize=0 is very important!
-	minSize := 0
-	gzipper, _ := gziphandler.NewGzipLevelAndMinSize(
-		gzip.DefaultCompression, minSize)
-	http.Handle("/sync", gzipper(velox.SyncHandler(foo)))
+	http.Handle("/sync", velox.SyncHandler(foo))
 	//index handler
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
@@ -60,15 +52,17 @@ func main() {
 var indexhtml = []byte(`
 <div>Status: <b id="status">disconnected</b></div>
 <pre id="example"></pre>
-<script src="/velox.js?dev=1"></script>
 <script>
-var foo = {};
-var v = velox("/sync", foo);
-v.onchange = function(isConnected) {
-	document.querySelector("#status").innerHTML = isConnected ? "connected" : "disconnected";
+var evtSource = new EventSource('http://127.0.0.1:3000/sync');
+evtSource.onmessage = function(e) {
+   var v =  JSON.parse(e.data)
+	document.querySelector("#example").innerHTML = JSON.stringify(v.body, null, 2);
 };
-v.onupdate = function() {
-	document.querySelector("#example").innerHTML = JSON.stringify(foo, null, 2);
+evtSource.onopen = function() {
+	document.querySelector("#status").innerHTML = "connected";
+};
+evtSource.onerror = function(e) {
+	document.querySelector("#status").innerHTML = "disconnected";
 };
 </script>
 `)

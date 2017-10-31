@@ -87,15 +87,17 @@ func main() {
 var indexhtml = []byte(`
 <div>Status: <b id="status">disconnected</b></div>
 <pre id="example"></pre>
-<script src="/velox.js?dev=1"></script>
 <script>
-var foo = {};
-var v = velox("/sync", foo);
-v.onchange = function(isConnected) {
-	document.querySelector("#status").innerHTML = isConnected ? "connected" : "disconnected";
+var evtSource = new EventSource('http://127.0.0.1:3000/sync');
+evtSource.onmessage = function(e) {
+   var v =  JSON.parse(e.data)
+	document.querySelector("#example").innerHTML = JSON.stringify(v.body, null, 2);
 };
-v.onupdate = function() {
-	document.querySelector("#example").innerHTML = JSON.stringify(foo, null, 2).length;
+evtSource.onopen = function() {
+	document.querySelector("#status").innerHTML = "connected";
+};
+evtSource.onerror = function(e) {
+	document.querySelector("#status").innerHTML = "disconnected";
 };
 </script>
 `)
